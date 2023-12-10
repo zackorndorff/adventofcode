@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Set, Tuple
@@ -121,8 +121,8 @@ def compute_halfwalls(walls, pipes):
 
 
 def find_halfpoints_reachable_from(coord, pipes, walls, dimensions) -> Set[Tuple[int, int]]:
-    reachable = set()
-    queue = [coord]
+    queue = deque([coord])
+    reachable = set([coord])
 
     halfwalls = halfpoint_filter(compute_halfwalls(walls, pipes), pipes)
     walls = set(walls)
@@ -131,8 +131,7 @@ def find_halfpoints_reachable_from(coord, pipes, walls, dimensions) -> Set[Tuple
 
     # BFS
     while queue:
-        current = queue[0]
-        queue = queue[1:] # TODO: optimize
+        current = queue.popleft()
         for adj_coord in halfpoint_adj(current, pipes):
             if adj_coord in reachable:
                 continue
@@ -219,23 +218,22 @@ LJ...""".splitlines()
     outside_points = find_halfpoints_reachable_from((0,0), pipes, walls=chain,
                                    dimensions=(pipes._height, pipes._width))
 
+    chainset = set(chain)
     # Wait if I assume no weird inside-out stuff if it's not outside it's
     # inside. Just count 'em.
     inside_cell_count = 0
     for i in range(pipes._height):
         for j in range(pipes._width):
-            if (i, j) not in outside_points and (i, j) not in chain:
-                print(i, j)
+            if (i, j) not in outside_points and (i, j) not in chainset:
                 inside_cell_count += 1
 
     print("part2:", inside_cell_count)
-    chainset = set(chain)
     for i in range(pipes._height):
         for j in range(pipes._width):
             if (i, j) in outside_points:
                 print(".", end="")
             elif (i, j) in chainset:
-                print("W", end="")
+                print(pipes.data[(i,j)], end="")
             else:
                 print(" ", end="")
         print()
