@@ -112,7 +112,8 @@ def dijkstra(data, source_point, bottommap, sidemap):
             # Pick one edge containing the map'd vertex to increase
             # This must be consistent: |(u, v)| == |(v, u)|
             # I chose the edge coming from left or top and ending on the mapped
-            # edge. That seems wrong but produces the right answer?
+            # edge, which matches the code above that adds to the map for the
+            # line below the one that is all dots.
             if vy != uy: # vertical edge
                 big = None
                 if uy in bottommap:
