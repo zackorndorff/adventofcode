@@ -86,7 +86,7 @@ def compute_edges(width, height):
 #                    dist[i][j] = dist[i][k] + dist[k][j]
 #    return dist
 
-def dijkstra(data, source_point):
+def dijkstra(data, source_point, bottommap, sidemap):
     width = len(data[0])
     height = len(data)
     #for edge in compute_edges(width, height):
@@ -104,8 +104,41 @@ def dijkstra(data, source_point):
         if prio != dist[u]:
             continue
 
+        uy, ux = u
         for v in compute_neighbors_for_point(u, width, height):
-            alt = dist[u] + 1
+            vy, vx = v
+            value = 1
+
+            # Pick one edge containing the map'd vertex to increase
+            # This must be consistent: |(u, v)| == |(v, u)|
+            # I chose the edge coming from left or top and ending on the mapped
+            # edge. That seems wrong but produces the right answer?
+            if vy != uy: # vertical edge
+                big = None
+                if uy in bottommap:
+                    big = uy
+                    small = vy
+                elif vy in bottommap:
+                    big = vy
+                    small = uy
+                if big is not None:
+                    if small < big:
+                        value += bottommap[big]
+            elif vx != ux: # horizontal edge
+                big = None
+                if ux in sidemap:
+                    big = ux
+                    small = vx
+                elif vx in sidemap:
+                    big = vx
+                    small = ux
+                if big is not None:
+                    if small < big:
+                        value += sidemap[big]
+
+
+
+            alt = dist[u] + value
             if alt < dist[v]:
                 dist[v] = alt
                 prev[v] = u
@@ -128,21 +161,29 @@ def main(realdata=False, part2=False):
 .......#..
 #...#.....""".splitlines()
 
+    bottommap = defaultdict(int)
+    rightmap = defaultdict(int)
     readone = []
+    curline = 0
     for linenum, line in enumerate(data):
         line = line.strip()
-        readone.append(list(line))
         if all(ch == "." for ch in line):
+            bottommap[curline] += 1000000 if part2 else 2
+        else:
             readone.append(list(line))
+            curline += 1
 
     height = len(readone)
     # this is a list of lists of chars
     transposed = transpose(readone)
     transposed_final = []
+    curside = 0
     for line in transposed:
-        transposed_final.append(line)
         if all(ch == "." for ch in line):
+            rightmap[curside] += 1000000 if part2 else 2
+        else:
             transposed_final.append(line)
+            curside += 1
 
     final = transpose(transposed_final)
     for line in final:
@@ -158,14 +199,12 @@ def main(realdata=False, part2=False):
 
     total = 0
     for i, galaxy1 in enumerate(tqdm(galaxies)):
-        dist, prev = dijkstra(final, galaxy1)
+        dist, prev = dijkstra(final, galaxy1, bottommap, rightmap)
         for galaxy2 in galaxies[i+1:]:
             #print(f"E({galaxy1}, {galaxy2}) = {dist[galaxy2]}")
             total += dist[galaxy2]
 
-    print("part1 total was", total)
-
-
+    print("total was", total)
 
 
 if __name__ == '__main__':
