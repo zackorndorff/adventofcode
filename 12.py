@@ -29,10 +29,14 @@ def matches_summary(records, summary):
         run_lengths.append(run_length)
     return tuple(run_lengths) == summary, run_lengths
 
-def handle(line):
+def handle(line, part2):
     records, summary = line.split()
+    if part2:
+        records = "?".join([records]*5)
+        summary = ",".join([summary]*5)
     records = list(records)
     summary = tuple([int(i) for i in summary.split(",")])
+    print(''.join(records), summary)
 
     unknowns = [i for i, ch in enumerate(records) if ch == "?"]
 
@@ -69,7 +73,7 @@ def main(realdata=False, part2=False):
         # if linenum == 0:
         #     continue
         line = line.strip()
-        result = handle(line)
+        result = handle(line, part2)
         print("line", linenum, line, "had", result)
         total += result
         # break
