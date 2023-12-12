@@ -77,17 +77,15 @@ def partial(records, summary, verbose=False):
     # After this point, we have at least one way to remove summary[0]
 
     # So our overlapping substructure is looking for places to add dots and
-    # still remove summary[0]
-
-    # Note: we must include the case of setting all to dots
+    # still remove summary[0] (+ the case that adds one too many dots)
 
     if records[0] == "#":
         # If we started with a #, we have no room to add dots. Just recurse.
         # We know we have enough #'s or ?'s due to the first_dot check. We must
         # remove summary[0], so we assume we'll set all ? to # and keep going.
         try:
-            if records[summary[0]] == "#": # there has to be a dot after us!
-                mprint("    failing to recursing 3 (nowhere to add dots) due to missing dot after us")
+            if records[summary[0]] == "#": # there has to be a dot (or a wildcard we can set to dot) after us!
+                mprint("    failing to recurse 3 (nowhere to add dots) due to missing dot after us")
                 return 0
         except IndexError:
             pass
@@ -100,6 +98,7 @@ def partial(records, summary, verbose=False):
     wildcards = min(next_pound, first_dot)
     mprint(f"  {wildcards=}")
 
+    # How much 'extra' room do we have before the next dot?
     wiggle_room = first_dot - summary[0]
     mprint(f"  {wiggle_room=}")
     assert wiggle_room >= 0, f"not enough wiggle_room: {wiggle_room}"
@@ -125,52 +124,14 @@ def partial(records, summary, verbose=False):
         mprint(f"    {result=}")
         total += result
 
-    ## TODO debug false hits here
-    ## Also try setting summary[0] wildcards to dot 
-    #mprint("    recursing 5 (one bunch of wildcards dots)")
-    #result = partial(records[wildcards:], summary, verbose)
-    #mprint(f"    {result=} (case 5)")
-    #total += result
-
     if wildcards > wiggle_room:
-        # Now add one too many dots so as to force a failure
+        # Now add one too many dots so as to force a failure + move on
         mprint("    recursing 5 (one bunch of wildcards dots)")
         result = partial(records[wiggle_room+1:], summary, verbose)
         mprint(f"    {result=} (case 5)")
         total += result
 
-    # # We want to use all our wildcards subject to how much spare room we have
-    # # And how much stuff we need to pull
-    # dots_to_add = min(wildcards, wiggle_room, summary[0])
-    # mprint(f"  {dots_to_add=}")
-    # for i in range(dots_to_add+1):
-    #     # Insert i dots at the beginning, then summary[0] #'s
-    #     #to_remove = dots_to_add + summary[0]
-    #     mprint(f"  {i=}")
-    #     mprint("    recursing 4 (adding {i} dots?)")
-    #     result = partial(records[i+summary[0]:], summary[1:], verbose)
-    #     mprint(f"    {result=}")
-    #     total += result
-
-    # # Also try setting one wildcard to dot 
-    # mprint("    recursing 5 (all wildcards dots)")
-    # result = partial(records[wildcards:], summary, verbose)
-    # mprint(f"    {result=}")
-    # total += result
-
     return total
-
-    # Now we need to try all the ways to remove summary[0]
-    # We must have that many "#"'s in a row. We can arbitrarily add dots at the
-    # beginning, that's our only question.
-
-    # So now we have an arbitrarily complex set of ##?#???##???????##, finished
-    # by either the end of the string or a dot.
-    # We need to figure out the groupings that are possible from that, then
-    # recurse with those removed from summary
-    # We could leave it all together, or each ? could become a dot.
-    # We only care about it if we can remove stuff from summary: if it doesn't
-    # match then we lose anyway and can ignore it.
 
 
 def handle(line, part2, verbose):
@@ -183,7 +144,8 @@ def handle(line, part2, verbose):
     new_result = partial(records, summary, verbose)
     return new_result
 
-    # Test code via brute
+    # Test code via brute, comment out the return to run it
+    # Too slow to actually run but useful for finding bugs
     unknowns = [i for i, ch in enumerate(records) if ch == "?"]
     records = list(records)
 
@@ -218,12 +180,6 @@ def main(realdata=False, part2=False, verbose=False):
 
     total = 0
     for linenum, line in enumerate(tqdm(list(data))):
-        # if linenum != 8:
-        #     continue
-        #if linenum < 1:
-        #    continue
-        # if linenum > 0:
-        #     break
         line = line.strip()
         result = handle(line, part2, verbose)
         print("line", linenum, line, "had", result)
