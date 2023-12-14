@@ -89,6 +89,30 @@ def compute_load(field):
                 total += field._height - y
     return total
 
+def check_history(history):
+    best_slide = (0, 0, -1, "")
+    for history_len in range(5, min(200, len(history))):
+        crib = history[-history_len:]
+        assert len(crib) == history_len, f"{len(crib)=}, {history_len=}"
+        for count in range(1, len(history)):
+            end = len(history) - (history_len)*count
+            if end-history_len < 0:
+                break
+            potential_match = history[end-history_len:end]
+            assert len(potential_match) == len(crib), f"{len(potential_match)=} {len(crib)=}"
+            if all(i == j for i, j in zip(potential_match, crib)):
+                slide = (count * history_len, count, history_len, crib)
+                if slide > best_slide:
+                    best_slide = slide
+            else:
+                break
+    ratio, count, best_len, s = best_slide
+    near = len(history) - count * best_len
+    print(f"check_history: {ratio=} {best_len=}, {count=}, {near=} {s=}")
+    return count, best_len, s
+
+
+
 
 def main(realdata=False, part2=False, verbose=False):
     if realdata:
@@ -116,16 +140,42 @@ O.#..O.#.#
     west  = ( 0, -1)
     south = ( 1,  0)
     east  = ( 0,  1)
+
+    if not part2:
+        simulate_roll(field, north)
+        print("part1:", compute_load(field))
+        return
+
+
+    history = []
+    final = 1000000000
     for cycles in range(1, 1001):
         for i in (north, west, south, east):
             simulate_roll(field, i)
             #print()
             #print(i)
             #field.print()
-        print(f"after {cycles} cycles, load is {compute_load(field)}")
+        load = compute_load(field)
+        history.append(load)
+        print(f"after {cycles} cycles, load is {load}")
 
-    print()
-    print("part1:", compute_load(field))
+
+        count, best_len, s = check_history(history)
+        if count > 10:
+            print("Solution primed")
+        if not count:
+            continue
+        multiplier = (final-cycles) // (best_len)
+        leftbound = cycles + (best_len) * multiplier
+        rightbound = leftbound + best_len
+        print(f"{leftbound=} {rightbound=} {multiplier=}")
+        if leftbound <= final <= rightbound:
+            idx = final - leftbound - 1
+            if idx < 0:
+                idx += len(s)
+            print("part2 guess:", s[idx], "in", cycles, "iterations")
+            if count > 1:
+                break
 
 
 
