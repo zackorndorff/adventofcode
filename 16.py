@@ -38,6 +38,7 @@ class Emulator:
         self._height = max(y for y, x in self.data.keys()) + 1
         self._width = max(x for y, x in self.data.keys()) + 1
         self.visited = set()
+        self.seen = set()
 
     def in_bounds(self, coord):
         y, x = coord
@@ -57,9 +58,10 @@ class Emulator:
         new_states = []
         for state in self.states:
             new_states.extend(self.state_step(state))
-        self.states = set(new_states)
+        self.states = set(new_states) - self.seen
         for state in self.states:
             self.visited.add(state.position)
+            self.seen.add(state)
         return len(self.states)
 
     def state_step(self, state) -> List[BeamState]:
