@@ -98,6 +98,10 @@ def points(width, height):
 #            yield (point, east)
 
 MAX_STRAIGHT = 3
+# Compute "layered" graph as suggested here:
+# https://math.stackexchange.com/questions/889418/constrained-shortest-path-dijkstra/3327906#3327906
+# Namely, we just add extra graph nodes to track the constraint on number of
+# consecutive moves in the same direction.
 def compute_neighbors_for_point(point, width, height):
     neighbors = []
     # Each point has north, south, east, west edges
