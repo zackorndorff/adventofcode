@@ -10,24 +10,6 @@ import math
 import re
 import sys
 
-from tqdm import tqdm
-
-import contextlib
-# https://stackoverflow.com/a/42424890
-@contextlib.contextmanager
-def redirect_to_tqdm():
-    old_print = print
-    def new_print(*args, **kwargs):
-        try:
-            tqdm.write(*args, **kwargs)
-        except Exception:
-            old_print(*args, **kwargs)
-    try:
-        inspect.builtins.print = new_print
-        yield
-    finally:
-        inspect.builtins.print = old_print
-
 
 NORTH = (-1, 0)
 SOUTH = ( 1, 0)
@@ -65,13 +47,6 @@ def coord_add(left, right):
     return (ly + ry, lx + rx, newdirection, newtimes)
 
 
-def transpose(lines):
-    new = [([""] * len(lines)) for i in range(len(lines[0]))]
-    for i, line in enumerate(lines):
-        for j, ch in enumerate(line):
-            new[j][i] = ch
-    return new
-
 def points(width, height):
     for i in range(height):
         for j in range(width):
@@ -79,23 +54,6 @@ def points(width, height):
                 for k in range(1, 4):
                     yield (i, j, direction, k)
 
-#def compute_edges_for_point(point, width, height):
-#        # Each point has north, south, east, west edges
-#        y, x, count = point
-#        # TODO: do count logic here if this is needed
-#        # north
-#        if y-1 >= 0:
-#            north = coord_add(point, NORTH)
-#            yield (point, north)
-#        if y+1 < height:
-#            south = coord_add(point, SOUTH)
-#            yield (point, south)
-#        if x-1 >= 0:
-#            west  = coord_add(point, WEST)
-#            yield (point, west)
-#        if x+1 < width:
-#            east  = coord_add(point, EAST)
-#            yield (point, east)
 
 MAX_STRAIGHT = 3
 # Compute "layered" graph as suggested here:
@@ -121,30 +79,9 @@ def compute_neighbors_for_point(point, width, height):
         neighbors.append(east)
     return neighbors
 
-#def compute_edges(width, height):
-#    for point in points(width, height):
-#        yield from compute_edges_for_point(point, width, height)
-
-# Too slow
-#def floyd_warshall(data):
-#    # number of vertices is width times height
-#    width = len(data[0])
-#    height = len(data)
-#    dist = defaultdict(lambda: defaultdict(lambda: 9999999999))
-#    for edge in compute_edges(width, height):
-#        u, v = edge
-#        dist[u][v] = 1
-#    for point in points(width, height):
-#        dist[point][point] = 0
-#    for k in tqdm(points(width, height)):
-#        for i in points(width, height):
-#            for j in points(width, height):
-#                if dist[i][j] > dist[i][k] + dist[k][j]:
-#                    dist[i][j] = dist[i][k] + dist[k][j]
-#    return dist
 
 INFINITY = 999999999
-# data is dict from point2 to weight as char
+# data is dict from point2 to weight as int
 # source_point is (y, x, direction, times_in_a_row)
 def dijkstra(data, source_point):
     height = max(y for y, x in data.keys()) + 1
