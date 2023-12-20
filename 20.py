@@ -26,6 +26,8 @@ class LogicCell:
     def in_pulse(self, pulse: bool, whence: str) -> Optional[bool]:
         # Returns True/False to send a pulse or None to do nothing
         raise NotImplementedError
+    def __repr__(self):
+        return f"{type(self).__name__}({self.name})"
 
 class FlipFlop(LogicCell):
     graph_name = "FF"
@@ -38,17 +40,9 @@ class FlipFlop(LogicCell):
         assert pulse is False
         self.state = not self.state
         return self.state
-    def __hash__(self):
-        return hash((
-            self.name,
-            tuple(self.outputs),
-            self.state,
-        ))
-    def __eq__(self, other):
-        return self.name == other.name and self.outputs == other.outputs and self.state == other.state
 
 class Conjunction(LogicCell):
-    graph_name = "AND"
+    graph_name = "NAND"
     def __init__(self, name, outputs):
         super().__init__(name, outputs)
         self.state = {}
@@ -64,18 +58,6 @@ class Conjunction(LogicCell):
 
     def append_input(self, input_name: str):
         self.state[input_name] = False
-
-    def __as_tuple(self):
-        return (
-            self.name,
-            tuple(self.outputs),
-            tuple((k,v) for k, v in self.state.items()),
-        )
-
-    def __hash__(self):
-        return hash(self.__as_tuple())
-    def __eq__(self, other):
-        return self.__as_tuple() == other.__as_tuple()
 
 class Broadcaster(LogicCell):
     def __init__(self, name, outputs):
@@ -108,17 +90,19 @@ def make_logiccell(tyype: str, name: str, outputs: List[str]):
 
 # We want our state to be hashable, because part2 is presumably going to ask us
 # to optimize it.
+# Narrator: that turned out to be a waste of time. Oops!
 class LogicSim:
+
     def get_cell(self, name):
-        return self._cells[self._cell_index[name]]
+        return self.cells[self._cell_index[name]]
 
     def to_dot(self):
         name_map = {}
-        for cell in self._cells:
+        for cell in self.cells:
             name_map[cell.name] = f"{cell.graph_name}_{cell.name}"
         fragments = []
         fragments.append("digraph G {")
-        for cell in self._cells:
+        for cell in self.cells:
             for output in cell.outputs:
                 lhs = name_map.get(cell.name, cell.name)
                 rhs = name_map.get(output, output)
@@ -129,11 +113,12 @@ class LogicSim:
     def __init__(self, cells):
         self._low_pulses = 0
         self._high_pulses = 0
-        self._cells = cells
-        self._cell_index = {i.name: idx for idx, i in enumerate(self._cells)}
-        self._first_lows = {}
+        self.cells = cells
+        self._cell_index = {i.name: idx for idx, i in enumerate(self.cells)}
+        self.first_lows = {}
+        self.first_highs = {}
         visited = set()
-        # tree walk to populate inputs and check for cycles
+        # tree walk to populate inputs
         queue = [self.get_cell("broadcaster")]
         while queue:
             i = queue.pop()
@@ -168,7 +153,7 @@ class LogicSim:
             # Count it
             self.count(pulse)
             if name == "output":
-                print("Output:", pulse)
+                #print("Output:", pulse)
                 continue
             try:
                 cell = self.get_cell(name)
@@ -176,10 +161,39 @@ class LogicSim:
                 continue
             result = cell.in_pulse(pulse, whence)
             if result is not None:
-                if result is True and cell.name not in self._first_lows:
-                    self._first_lows[cell.name] = i
+                if result is False and cell.name not in self.first_lows:
+                    self.first_lows[cell.name] = i
+                elif result is True and cell.name not in self.first_highs:
+                    self.first_highs[cell.name] = i
                 for output in cell.outputs:
                     pulses.append((output, result, name))
+
+def decide_interestingcells(sim) -> Tuple[List[str], bool]:
+    output_to_cell_map = defaultdict(list)
+    for cell in sim.cells:
+        for output in cell.outputs:
+            output_to_cell_map[output].append(cell)
+
+    inputs = ["rx"]
+    needed = True # pretending "rx" is a NAND, we'd need it to generate HIGH
+    # It won't generate anything, but it makes the walk backward work.
+    last_inputs, last_needed = None, None
+    while True:
+        if not inputs:
+            raise Exception("Unable to find structured input to solve part2")
+        last_inputs = inputs
+        last_needed = needed
+
+        parents = []
+        for inp in inputs:
+            parents.extend(output_to_cell_map[inp])
+        if not all(isinstance(i, Conjunction) for i in parents):
+            return inputs, needed
+        print(f"To get all of {inputs} to be {needed}, ", end="")
+        inputs = [i.name for i in parents]
+        needed = not needed
+        print(f"we need all of {inputs} to be {needed}")
+
 
 def main(realdata=False, part2=False, verbose=False, num=None):
     if realdata:
@@ -210,23 +224,29 @@ def main(realdata=False, part2=False, verbose=False, num=None):
         outputs = rhs.split(", ")
         cell = make_logiccell(tyype, name, outputs)
         cells.append(cell)
+
     sim = LogicSim(cells)
+
     if not part2:
         for i in range(1000):
             sim.simulate_input(False)
         print("score", sim.score())
     else:
+        # Visualize with: dot -Tpdf lol.dot -o lol.pdf
         print(sim.to_dot())
-        interesting = ["sp", "sv", "qs", "pg"]
-        for i in tqdm(range(10000000000000)):
+        interesting, needed_result = decide_interestingcells(sim)
+        for i in range(100000):
             sim.simulate_input(False, i+1)
-            if all(j in sim._first_lows for j in interesting):
-                fun = [(cell, sim._first_lows[cell]) for cell in interesting]
-                print(math.lcm(*(a for _, a in fun)))
+            if needed_result:
+                firsts = sim.first_highs
+            else:
+                firsts = sim.first_lows
+            if all(j in firsts for j in interesting):
+                interesting_results = [(cell, firsts[cell]) for cell in interesting]
+                print(f"First time each is {needed_result}:", interesting_results)
+                result = math.lcm(*(r for _, r in interesting_results))
+                print(result)
                 break
-
-
-
 
 
 if __name__ == '__main__':
